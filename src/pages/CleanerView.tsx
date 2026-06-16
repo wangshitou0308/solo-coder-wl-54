@@ -6,7 +6,6 @@ import {
   Clock, 
   MapPin, 
   Navigation,
-  AlertTriangle,
   ChevronRight,
   Play,
   Check,
@@ -25,26 +24,32 @@ const statusTabs: { value: WorkOrderStatus | 'all'; label: string; icon: typeof 
 ];
 
 export default function CleanerView() {
-  const { workOrders, currentUser, updateWorkOrderStatus } = useAppStore();
+  const { workOrders, currentUser, acceptWorkOrder, completeWorkOrder } = useAppStore();
   const [activeTab, setActiveTab] = useState<WorkOrderStatus | 'all'>('pending');
   const [viewMode, setViewMode] = useState<'list' | 'map'>('list');
   const [selectedOrder, setSelectedOrder] = useState<string | null>(null);
 
-  const myOrders = workOrders.filter((order) => 
-    order.cleanerId === currentUser?.id || order.status === 'pending' || order.status === 'assigned'
+  const myAssignedOrders = workOrders.filter((order) => 
+    order.cleanerId === currentUser?.id
   );
 
-  const filteredOrders = myOrders.filter((order) => {
+  const poolOrders = workOrders.filter((order) => 
+    order.status === 'pending' || order.status === 'assigned'
+  );
+
+  const allMyOrders = [...poolOrders.filter(o => !myAssignedOrders.find(m => m.id === o.id)), ...myAssignedOrders];
+
+  const filteredOrders = allMyOrders.filter((order) => {
     if (activeTab !== 'all' && order.status !== activeTab) return false;
     return true;
   });
 
   const handleAcceptOrder = (orderId: string) => {
-    updateWorkOrderStatus(orderId, 'processing');
+    acceptWorkOrder(orderId);
   };
 
   const handleCompleteOrder = (orderId: string) => {
-    updateWorkOrderStatus(orderId, 'completed');
+    completeWorkOrder(orderId);
   };
 
   const getStatusColor = (status: WorkOrderStatus) => {
@@ -57,9 +62,17 @@ export default function CleanerView() {
     }
   };
 
-  const pendingCount = myOrders.filter(o => o.status === 'pending' || o.status === 'assigned').length;
-  const processingCount = myOrders.filter(o => o.status === 'processing').length;
-  const completedCount = myOrders.filter(o => o.status === 'completed').length;
+  const pendingCount = poolOrders.length;
+  const processingCount = myAssignedOrders.filter(o => o.status === 'processing').length;
+  const completedCount = myAssignedOrders.filter(o => o.status === 'completed').length;
+
+  const getTabCount = (status: WorkOrderStatus | 'all') => {
+    if (status === 'all') return allMyOrders.length;
+    if (status === 'pending') return poolOrders.filter(o => o.status === 'pending' || o.status === 'assigned').length;
+    if (status === 'processing') return myAssignedOrders.filter(o => o.status === 'processing').length;
+    if (status === 'completed') return myAssignedOrders.filter(o => o.status === 'completed').length;
+    return 0;
+  };
 
   return (
     <div className="min-h-full bg-smoke-50">
@@ -136,9 +149,7 @@ export default function CleanerView() {
           <div className="flex gap-2 mb-4">
             {statusTabs.map((tab) => {
               const Icon = tab.icon;
-              const count = tab.value === 'all' 
-                ? myOrders.length 
-                : myOrders.filter(o => o.status === tab.value).length;
+              const count = getTabCount(tab.value);
               return (
                 <button
                   key={tab.value}
@@ -239,7 +250,7 @@ export default function CleanerView() {
                             </button>
                           </>
                         )}
-                        {order.status === 'processing' && (
+                        {order.status === 'processing' && order.cleanerId === currentUser?.id && (
                           <button
                             onClick={(e) => {
                               e.stopPropagation();

@@ -21,6 +21,8 @@ interface AppState {
   setShowDetailPanel: (show: boolean) => void;
   addWorkOrder: (order: WorkOrder) => void;
   updateWorkOrderStatus: (id: string, status: WorkOrder['status']) => void;
+  acceptWorkOrder: (id: string) => void;
+  completeWorkOrder: (id: string) => void;
   getFilteredFacilities: () => Facility[];
 }
 
@@ -99,6 +101,36 @@ export const useAppStore = create<AppState>((set, get) => ({
     set((state) => ({
       workOrders: state.workOrders.map((order) =>
         order.id === id ? { ...order, status } : order
+      ),
+    }));
+  },
+
+  acceptWorkOrder: (id: string) => {
+    const { currentUser } = get();
+    const now = new Date().toISOString().replace('T', ' ').substring(0, 16);
+    set((state) => ({
+      workOrders: state.workOrders.map((order) =>
+        order.id === id
+          ? {
+              ...order,
+              status: 'processing',
+              cleanerId: currentUser?.id,
+              cleanerName: currentUser?.name,
+              assignTime: now,
+              processTime: now,
+            }
+          : order
+      ),
+    }));
+  },
+
+  completeWorkOrder: (id: string) => {
+    const now = new Date().toISOString().replace('T', ' ').substring(0, 16);
+    set((state) => ({
+      workOrders: state.workOrders.map((order) =>
+        order.id === id
+          ? { ...order, status: 'completed', completeTime: now, remark: '已完成清理，设施状态恢复正常' }
+          : order
       ),
     }));
   },
