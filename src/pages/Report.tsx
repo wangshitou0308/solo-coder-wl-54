@@ -19,7 +19,6 @@ import {
 } from 'lucide-react';
 import { useAppStore } from '../store/appStore';
 import { workOrderTypeLabels, getEstimatedResponseTime, generateId } from '../utils';
-import { facilities } from '../data/facilities';
 import type { WorkOrderType, Facility, WorkOrderPriority } from '../types';
 import { cn } from '../lib/utils';
 
@@ -34,7 +33,7 @@ export default function Report() {
   const location = useLocation();
   const navigate = useNavigate();
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const { addWorkOrder, setHighlightedWorkOrderId } = useAppStore();
+  const { addWorkOrder, setHighlightedWorkOrderId, facilities, getFacilityById } = useAppStore();
   
   const state = location.state as { facilityId?: string; facilityName?: string } | null;
   
@@ -50,7 +49,10 @@ export default function Report() {
   const [showFacilityPicker, setShowFacilityPicker] = useState(false);
   const [facilitySearch, setFacilitySearch] = useState('');
   const [selectedFacility, setSelectedFacility] = useState<Facility | null>(
-    state?.facilityId ? facilities.find(f => f.id === state.facilityId) || null : null
+    state?.facilityId ? (() => {
+      const f = useAppStore.getState().getFacilityById(state.facilityId!);
+      return f || null;
+    })() : null
   );
 
   useEffect(() => {
@@ -77,12 +79,26 @@ export default function Report() {
     const files = e.target.files;
     if (!files) return;
 
-    Array.from(files).forEach(file => {
-      if (images.length >= 5) return;
+    const MAX_IMAGES = 5;
+    const remainingSlots = MAX_IMAGES - images.length;
+    if (remainingSlots <= 0) {
+      alert(`最多只能上传${MAX_IMAGES}张照片`);
+      if (fileInputRef.current) fileInputRef.current.value = '';
+      return;
+    }
+
+    const filesToProcess = Array.from(files).slice(0, remainingSlots);
+    const ignoredCount = files.length - filesToProcess.length;
+
+    if (ignoredCount > 0) {
+      alert(`最多只能上传${MAX_IMAGES}张照片，已自动忽略${ignoredCount}张`);
+    }
+
+    filesToProcess.forEach(file => {
       const reader = new FileReader();
       reader.onload = (event) => {
         if (event.target?.result) {
-          setImages(prev => [...prev, event.target!.result as string]);
+          setImages(prev => prev.length >= MAX_IMAGES ? prev : [...prev, event.target!.result as string]);
         }
       };
       reader.readAsDataURL(file);
@@ -97,10 +113,12 @@ export default function Report() {
     setImages(images.filter((_, i) => i !== index));
   };
 
-  const filteredFacilities = facilities.filter(f => 
-    f.name.includes(facilitySearch) || 
-    f.code.includes(facilitySearch) ||
-    f.address.includes(facilitySearch)
+  const activeFacilities = facilities.filter(f => f.isActive !== false);
+
+  const filteredFacilities = activeFacilities.filter(f => 
+    f.name.toLowerCase().includes(facilitySearch.toLowerCase()) || 
+    f.code.toLowerCase().includes(facilitySearch.toLowerCase()) ||
+    f.address.toLowerCase().includes(facilitySearch.toLowerCase())
   );
 
   const handleSelectFacility = (facility: Facility) => {
@@ -122,6 +140,18 @@ export default function Report() {
     if (!selectedType) return;
     if (!selectedFacility) {
       alert('请先选择上报的设施');
+      return;
+    }
+
+    const currentFacility = getFacilityById(selectedFacility.id);
+    if (!currentFacility || currentFacility.isActive === false) {
+      alert('所选设施已不存在或已停用，请重新选择设施');
+      setSelectedFacility(null);
+      return;
+    }
+
+    if (images.length > 5) {
+      alert('最多只能上传5张照片');
       return;
     }
 
