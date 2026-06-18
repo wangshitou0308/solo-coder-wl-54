@@ -12,6 +12,7 @@ import {
   Users,
   Zap
 } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 import { useAppStore } from '../store/appStore';
 import { alertList, schedulerSuggestions, dashboardStats } from '../data/statistics';
 import { workOrderStatusLabels, formatDateTime } from '../utils';
@@ -20,6 +21,7 @@ import { cn } from '../lib/utils';
 import StatCard from '../components/Charts/StatCard';
 
 export default function AdminView() {
+  const navigate = useNavigate();
   const { facilities } = useAppStore();
   const [activeAlertId, setActiveAlertId] = useState<number | null>(null);
 
@@ -283,10 +285,16 @@ export default function AdminView() {
                 <button className="py-2.5 bg-white/20 rounded-lg text-sm hover:bg-white/30 transition-colors">
                   批量派单
                 </button>
-                <button className="py-2.5 bg-white/20 rounded-lg text-sm hover:bg-white/30 transition-colors">
+                <button
+                  onClick={() => navigate('/facilities')}
+                  className="py-2.5 bg-white/20 rounded-lg text-sm hover:bg-white/30 transition-colors"
+                >
                   设施管理
                 </button>
-                <button className="py-2.5 bg-white/20 rounded-lg text-sm hover:bg-white/30 transition-colors">
+                <button
+                  onClick={() => navigate('/dashboard')}
+                  className="py-2.5 bg-white/20 rounded-lg text-sm hover:bg-white/30 transition-colors"
+                >
                   数据报表
                 </button>
               </div>

@@ -1,5 +1,5 @@
 
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { 
   Camera, 
@@ -13,26 +13,28 @@ import {
   ChevronLeft,
   Upload,
   X,
-  Search
+  Search,
+  Clock,
+  FileText,
 } from 'lucide-react';
 import { useAppStore } from '../store/appStore';
-import { workOrderTypeLabels } from '../utils';
-import { createWorkOrder } from '../data/workorders';
+import { workOrderTypeLabels, getEstimatedResponseTime, generateId } from '../utils';
 import { facilities } from '../data/facilities';
-import type { WorkOrderType, Facility } from '../types';
+import type { WorkOrderType, Facility, WorkOrderPriority } from '../types';
 import { cn } from '../lib/utils';
 
-const issueTypes: { value: WorkOrderType; label: string; icon: typeof Trash2; color: string }[] = [
-  { value: 'overflow', label: '烟蒂满溢', icon: Trash2, color: 'text-red-500 bg-red-50' },
-  { value: 'damage', label: '设施损坏', icon: Hammer, color: 'text-orange-500 bg-orange-50' },
-  { value: 'missing_bag', label: '缺少烟蒂袋', icon: Package, color: 'text-yellow-500 bg-yellow-50' },
-  { value: 'other', label: '其他问题', icon: HelpCircle, color: 'text-smoke-500 bg-smoke-50' },
+const issueTypes: { value: WorkOrderType; label: string; icon: typeof Trash2; color: string; defaultPriority: WorkOrderPriority }[] = [
+  { value: 'overflow', label: '烟蒂满溢', icon: Trash2, color: 'text-red-500 bg-red-50', defaultPriority: 'high' },
+  { value: 'damage', label: '设施损坏', icon: Hammer, color: 'text-orange-500 bg-orange-50', defaultPriority: 'urgent' },
+  { value: 'missing_bag', label: '缺少烟蒂袋', icon: Package, color: 'text-yellow-500 bg-yellow-50', defaultPriority: 'medium' },
+  { value: 'other', label: '其他问题', icon: HelpCircle, color: 'text-smoke-500 bg-smoke-50', defaultPriority: 'low' },
 ];
 
 export default function Report() {
   const location = useLocation();
   const navigate = useNavigate();
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const { addWorkOrder, setHighlightedWorkOrderId } = useAppStore();
   
   const state = location.state as { facilityId?: string; facilityName?: string } | null;
   
@@ -43,11 +45,22 @@ export default function Report() {
   const [reporterPhone, setReporterPhone] = useState('');
   const [images, setImages] = useState<string[]>([]);
   const [orderNo, setOrderNo] = useState('');
+  const [newOrderId, setNewOrderId] = useState<string | null>(null);
+  const [estimatedRespTime, setEstimatedRespTime] = useState('');
   const [showFacilityPicker, setShowFacilityPicker] = useState(false);
   const [facilitySearch, setFacilitySearch] = useState('');
   const [selectedFacility, setSelectedFacility] = useState<Facility | null>(
     state?.facilityId ? facilities.find(f => f.id === state.facilityId) || null : null
   );
+
+  useEffect(() => {
+    if (newOrderId) {
+      const el = document.getElementById(`wo-${newOrderId}`);
+      if (el) {
+        el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      }
+    }
+  }, [newOrderId]);
 
   const facilityName = selectedFacility?.name || '请选择设施';
 
@@ -112,19 +125,43 @@ export default function Report() {
       return;
     }
 
-    const newOrder = createWorkOrder({
+    const issueConfig = issueTypes.find(i => i.value === selectedType);
+    const priority: WorkOrderPriority = issueConfig?.defaultPriority || 'medium';
+
+    const now = new Date().toISOString().replace('T', ' ').substring(0, 16);
+    const dateStr = new Date().toISOString().substring(0, 10).replace(/-/g, '');
+    const seq = String(Math.floor(Math.random() * 9000) + 1000);
+    const newOrderNo = `WO${dateStr}${seq}`;
+    const newId = generateId('order', 3);
+
+    const newOrder = {
+      id: newId,
+      orderNo: newOrderNo,
       facilityId: selectedFacility.id,
       facilityName: selectedFacility.name,
       type: selectedType,
-      description,
+      description: description || (issueConfig ? `${issueConfig.label}上报` : ''),
       images,
       reporterName: reporterName || '匿名市民',
-      reporterPhone,
+      reporterPhone: reporterPhone || '',
+      status: 'pending' as const,
+      priority,
+      createTime: now,
       district: selectedFacility.district,
-    });
+    };
     
-    setOrderNo(newOrder.orderNo);
+    addWorkOrder(newOrder);
+    setOrderNo(newOrderNo);
+    setNewOrderId(newId);
+    setEstimatedRespTime(getEstimatedResponseTime(priority));
     setStep('success');
+  };
+
+  const handleViewWorkOrders = () => {
+    if (newOrderId) {
+      setHighlightedWorkOrderId(newOrderId);
+    }
+    navigate('/workorders', { state: { highlightId: newOrderId } });
   };
 
   const resetForm = () => {
@@ -135,6 +172,8 @@ export default function Report() {
     setReporterPhone('');
     setImages([]);
     setSelectedFacility(null);
+    setOrderNo('');
+    setNewOrderId(null);
   };
 
   return (
@@ -313,17 +352,29 @@ export default function Report() {
             <h2 className="text-2xl font-bold text-smoke-800 mb-2">上报成功</h2>
             <p className="text-smoke-500 mb-4">感谢您的反馈，我们会尽快处理</p>
             
-            <div className="bg-white rounded-xl p-5 shadow-card inline-block mb-8 text-left">
-              <p className="text-sm text-smoke-500 mb-1">工单编号</p>
-              <p className="text-xl font-mono font-bold text-brand-accent">{orderNo}</p>
-              <p className="text-xs text-smoke-400 mt-2">预计2小时内响应处理</p>
+            <div className="bg-white rounded-xl p-5 shadow-card inline-block mb-8 text-left w-full max-w-sm">
+              <div className="space-y-3">
+                <div>
+                  <p className="text-sm text-smoke-500 mb-1">工单编号</p>
+                  <p className="text-xl font-mono font-bold text-brand-accent">{orderNo}</p>
+                </div>
+                <div className="flex items-center gap-2 pt-2 border-t border-smoke-100">
+                  <Clock className="w-4 h-4 text-health-warning" />
+                  <p className="text-sm text-smoke-600">{estimatedRespTime}</p>
+                </div>
+                <div className="flex items-center gap-2">
+                  <FileText className="w-4 h-4 text-smoke-400" />
+                  <p className="text-sm text-smoke-500">当前状态：<span className="text-yellow-600 font-medium">待处理</span></p>
+                </div>
+              </div>
             </div>
 
-            <div className="space-y-3">
+            <div className="space-y-3 max-w-sm mx-auto">
               <button
-                onClick={() => navigate('/workorders')}
-                className="w-full py-3 bg-brand-accent text-white rounded-xl font-medium hover:bg-blue-600 transition-colors"
+                onClick={handleViewWorkOrders}
+                className="w-full py-3 bg-brand-accent text-white rounded-xl font-medium hover:bg-blue-600 transition-colors flex items-center justify-center gap-2"
               >
+                <FileText className="w-4 h-4" />
                 查看工单进度
               </button>
               <button

@@ -8,6 +8,7 @@ import WorkOrders from "./pages/WorkOrders";
 import Dashboard from "./pages/Dashboard";
 import CleanerView from "./pages/CleanerView";
 import AdminView from "./pages/AdminView";
+import FacilityManagement from "./pages/FacilityManagement";
 
 function AppContent() {
   const { currentRole } = useAppStore();
@@ -17,7 +18,7 @@ function AppContent() {
   return (
     <div className="flex h-screen bg-smoke-100 overflow-hidden">
       {showSidebar && <Sidebar />}
-      <main className="flex-1 overflow-hidden">
+      <main className="flex-1 overflow-hidden overflow-y-auto">
         <Routes>
           <Route path="/" element={<Home />} />
           <Route path="/report" element={<Report />} />
@@ -25,6 +26,7 @@ function AppContent() {
           <Route path="/dashboard" element={<Dashboard />} />
           <Route path="/cleaner" element={<CleanerView />} />
           <Route path="/admin" element={<AdminView />} />
+          <Route path="/facilities" element={<FacilityManagement />} />
         </Routes>
       </main>
     </div>

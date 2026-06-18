@@ -1,5 +1,5 @@
 
-import type { FacilityType, FacilityStatus, HealthLevel, CrowdDensity, WorkOrderType, WorkOrderStatus, WorkOrderPriority } from '../types';
+import type { FacilityType, FacilityStatus, HealthLevel, CrowdDensity, WorkOrderType, WorkOrderStatus, WorkOrderPriority, MaintenanceRecordType } from '../types';
 
 export const facilityTypeLabels: Record<FacilityType, string> = {
   indoor_room: '室内吸烟室',
@@ -12,6 +12,34 @@ export const facilityStatusLabels: Record<FacilityStatus, string> = {
   half: '半满',
   nearly_full: '将满',
   full: '已满',
+};
+
+export const facilityStatusColors: Record<FacilityStatus, string> = {
+  empty: 'bg-health-good',
+  half: 'bg-health-warning',
+  nearly_full: 'bg-health-alert',
+  full: 'bg-health-danger',
+};
+
+export const facilityStatusBgColors: Record<FacilityStatus, string> = {
+  empty: 'bg-green-100 text-green-700',
+  half: 'bg-yellow-100 text-yellow-700',
+  nearly_full: 'bg-orange-100 text-orange-700',
+  full: 'bg-red-100 text-red-700',
+};
+
+export const maintenanceTypeLabels: Record<MaintenanceRecordType, string> = {
+  clean: '清理记录',
+  repair: '维修记录',
+  exception: '异常上报',
+  inspection: '日常巡检',
+};
+
+export const maintenanceTypeColors: Record<MaintenanceRecordType, string> = {
+  clean: 'bg-green-100 text-green-700',
+  repair: 'bg-blue-100 text-blue-700',
+  exception: 'bg-red-100 text-red-700',
+  inspection: 'bg-purple-100 text-purple-700',
 };
 
 export const healthLevelLabels: Record<HealthLevel, string> = {
@@ -50,6 +78,14 @@ export const workOrderStatusLabels: Record<WorkOrderStatus, string> = {
   cancelled: '已取消',
 };
 
+export const workOrderStatusColors: Record<WorkOrderStatus, string> = {
+  pending: 'bg-yellow-100 text-yellow-700',
+  assigned: 'bg-blue-100 text-blue-700',
+  processing: 'bg-orange-100 text-orange-700',
+  completed: 'bg-green-100 text-green-700',
+  cancelled: 'bg-smoke-100 text-smoke-600',
+};
+
 export const workOrderPriorityLabels: Record<WorkOrderPriority, string> = {
   low: '低',
   medium: '中',
@@ -62,6 +98,13 @@ export const workOrderPriorityColors: Record<WorkOrderPriority, string> = {
   medium: '#3498DB',
   high: '#E67E22',
   urgent: '#E74C3C',
+};
+
+export const workOrderPriorityBgColors: Record<WorkOrderPriority, string> = {
+  low: 'bg-green-100 text-green-700',
+  medium: 'bg-blue-100 text-blue-700',
+  high: 'bg-orange-100 text-orange-700',
+  urgent: 'bg-red-100 text-red-700',
 };
 
 export function calculateDistance(lat1: number, lng1: number, lat2: number, lng2: number): number {
@@ -99,6 +142,11 @@ export function formatDateTime(dateStr: string): string {
   return dateStr.substring(0, 10);
 }
 
+export function formatFullDateTime(dateStr: string): string {
+  if (!dateStr) return '-';
+  return dateStr.replace('T', ' ').substring(0, 16);
+}
+
 export function getFacilityIconName(type: FacilityType): string {
   switch (type) {
     case 'indoor_room':
@@ -123,5 +171,52 @@ export function getStatusFromHealthLevel(level: HealthLevel): FacilityStatus {
       return 'full';
     default:
       return 'empty';
+  }
+}
+
+export function getHealthLevelFromStatus(status: FacilityStatus): HealthLevel {
+  switch (status) {
+    case 'empty':
+    case 'half':
+      return 'good';
+    case 'nearly_full':
+      return 'warning';
+    case 'full':
+      return 'danger';
+  }
+}
+
+export function getStatusFromCurrentLevel(level: number): FacilityStatus {
+  if (level < 25) return 'empty';
+  if (level < 50) return 'half';
+  if (level < 80) return 'nearly_full';
+  return 'full';
+}
+
+export function getEstimatedResponseMinutes(priority: WorkOrderPriority): number {
+  switch (priority) {
+    case 'urgent': return 30;
+    case 'high': return 60;
+    case 'medium': return 120;
+    case 'low': return 240;
+  }
+}
+
+export function getEstimatedResponseTime(priority: WorkOrderPriority): string {
+  const minutes = getEstimatedResponseMinutes(priority);
+  if (minutes < 60) return `预计${minutes}分钟内响应`;
+  return `预计${Math.floor(minutes / 60)}小时内响应`;
+}
+
+export function generateId(prefix: string, length: number = 3): string {
+  return `${prefix}-${String(Date.now()).slice(-length)}${String(Math.floor(Math.random() * 1000)).padStart(length, '0')}`;
+}
+
+export function copyToClipboard(text: string): Promise<boolean> {
+  try {
+    navigator.clipboard.writeText(text);
+    return Promise.resolve(true);
+  } catch {
+    return Promise.resolve(false);
   }
 }

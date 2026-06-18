@@ -4,6 +4,7 @@ import { useAppStore } from '../../store/appStore';
 import FacilityMarker from './FacilityMarker';
 import FilterPanel from './FilterPanel';
 import FacilityDetailPanel from './FacilityDetailPanel';
+import MapSearchBar from './MapSearchBar';
 import 'leaflet/dist/leaflet.css';
 import { useEffect } from 'react';
 
@@ -11,7 +12,7 @@ const center: [number, number] = [39.9, 116.4];
 const zoom = 12;
 
 function MapController() {
-  const { selectedFacility } = useAppStore();
+  const { selectedFacility, highlightedFacilityId, getFacilityById, setHighlightedFacilityId } = useAppStore();
   const map = useMap();
 
   useEffect(() => {
@@ -23,17 +24,35 @@ function MapController() {
     }
   }, [selectedFacility, map]);
 
+  useEffect(() => {
+    if (highlightedFacilityId) {
+      const facility = getFacilityById(highlightedFacilityId);
+      if (facility) {
+        map.setView([facility.lat, facility.lng], 16, {
+          animate: true,
+          duration: 0.5,
+        });
+        const timer = setTimeout(() => {
+          setHighlightedFacilityId(null);
+        }, 6000);
+        return () => clearTimeout(timer);
+      }
+    }
+  }, [highlightedFacilityId, map, getFacilityById, setHighlightedFacilityId]);
+
   return null;
 }
 
 interface MapViewProps {
   showFilters?: boolean;
+  showSearchBar?: boolean;
 }
 
-export default function MapView({ showFilters = true }: MapViewProps) {
-  const { getFilteredFacilities } = useAppStore();
+export default function MapView({ showFilters = true, showSearchBar = true }: MapViewProps) {
+  const { getFilteredFacilities, currentRole, highlightedFacilityId, getFacilityById } = useAppStore();
 
   const filteredFacilities = getFilteredFacilities();
+  const highlightedFacility = highlightedFacilityId ? getFacilityById(highlightedFacilityId) : null;
 
   return (
     <div className="relative w-full h-full">
@@ -51,10 +70,25 @@ export default function MapView({ showFilters = true }: MapViewProps) {
         <MapController />
         
         {filteredFacilities.map((facility) => (
-          <FacilityMarker key={facility.id} facility={facility} />
+          <FacilityMarker
+            key={facility.id}
+            facility={facility}
+            isHighlighted={highlightedFacilityId === facility.id}
+            hasWorkOrder={facility.healthLevel === 'danger' || facility.healthLevel === 'alert'}
+          />
         ))}
+
+        {highlightedFacility && (
+          <FacilityMarker
+            key={`highlight-${highlightedFacility.id}`}
+            facility={highlightedFacility}
+            isHighlighted={true}
+            forceTop={true}
+          />
+        )}
       </MapContainer>
 
+      {showSearchBar && <MapSearchBar />}
       {showFilters && <FilterPanel />}
       <FacilityDetailPanel />
 

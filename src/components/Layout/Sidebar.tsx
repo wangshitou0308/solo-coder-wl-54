@@ -10,6 +10,7 @@ import {
   Menu,
   X,
   Cigarette,
+  Settings2,
 } from 'lucide-react';
 import { useAppStore } from '../../store/appStore';
 import { cn } from '../../lib/utils';
@@ -37,6 +38,7 @@ export default function Sidebar({ className }: SidebarProps) {
 
   const adminNavItems = [
     { path: '/admin', icon: BarChart3, label: '监控总览' },
+    { path: '/facilities', icon: Settings2, label: '设施管理' },
     { path: '/dashboard', icon: BarChart3, label: '数据看板' },
     { path: '/workorders', icon: ClipboardList, label: '工单管理' },
     { path: '/', icon: Map, label: '设施地图' },

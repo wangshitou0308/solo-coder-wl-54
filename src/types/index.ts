@@ -7,6 +7,37 @@ export type HealthLevel = 'good' | 'warning' | 'alert' | 'danger';
 
 export type CrowdDensity = 'low' | 'medium' | 'high' | 'very_high';
 
+export type MaintenanceRecordType = 'clean' | 'repair' | 'exception' | 'inspection';
+
+export interface MaintenanceRecord {
+  id: string;
+  facilityId: string;
+  type: MaintenanceRecordType;
+  title: string;
+  description: string;
+  operatorName: string;
+  operatorRole: 'cleaner' | 'admin' | 'citizen';
+  createTime: string;
+  workOrderId?: string;
+  beforeStatus?: FacilityStatus;
+  afterStatus?: FacilityStatus;
+  currentLevelBefore?: number;
+  currentLevelAfter?: number;
+  images?: string[];
+}
+
+export interface ProcessRecord {
+  id: string;
+  workOrderId: string;
+  action: string;
+  operatorName: string;
+  operatorRole: 'system' | 'cleaner' | 'admin' | 'citizen';
+  createTime: string;
+  remark?: string;
+  beforeStatus?: string;
+  afterStatus?: string;
+}
+
 export interface Facility {
   id: string;
   code: string;
@@ -25,6 +56,10 @@ export interface Facility {
   hasAshtray: boolean;
   hasTrashBin: boolean;
   maintenanceDate: string;
+  isActive?: boolean;
+  createTime?: string;
+  updateTime?: string;
+  maintenanceRecords?: MaintenanceRecord[];
 }
 
 export type WorkOrderType = 'overflow' | 'damage' | 'missing_bag' | 'other';
@@ -53,6 +88,12 @@ export interface WorkOrder {
   cleanerName?: string;
   remark?: string;
   district?: string;
+  estimatedResponseTime?: string;
+  estimatedResponseMinutes?: number;
+  processRecords?: ProcessRecord[];
+  cleanerRemark?: string;
+  facilityStatusAfter?: FacilityStatus;
+  currentLevelAfter?: number;
 }
 
 export type UserRole = 'citizen' | 'cleaner' | 'admin';
@@ -84,9 +125,39 @@ export interface DashboardStats {
   hourlyTrend: { hour: string; count: number }[];
 }
 
+export type FilterSortBy = 'distance' | 'name' | 'status';
+
+export interface WorkOrderFilterOptions {
+  orderNo: string;
+  facilityName: string;
+  districts: string[];
+  types: WorkOrderType[];
+  statuses: WorkOrderStatus[];
+}
+
+export interface FacilityFilterOptions {
+  keyword: string;
+  districts: string[];
+  types: FacilityType[];
+  statuses: FacilityStatus[];
+  sortBy: FilterSortBy;
+  userLocation?: { lat: number; lng: number };
+  onlyActive?: boolean;
+}
+
 export interface FilterOptions {
   district: string[];
   type: FacilityType[];
   status: FacilityStatus[];
-  sortBy: 'distance' | 'name' | 'status';
+  sortBy: FilterSortBy;
+}
+
+export interface FacilityWithDistance extends Facility {
+  distance?: number;
+}
+
+export interface PendingWorkOrder {
+  workOrderId: string;
+  orderNo: string;
+  facilityId: string;
 }
